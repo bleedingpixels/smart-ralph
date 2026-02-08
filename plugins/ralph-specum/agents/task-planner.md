@@ -174,6 +174,87 @@ ALL specs MUST follow POC-first workflow:
 4. **Phase 4: Quality Gates** - Lint, types, CI verification
 </mandatory>
 
+## Parallel Task Marking [P]
+
+<mandatory>
+**Identify and mark tasks that can execute in parallel with [P] marker.**
+
+**When to mark tasks with [P]:**
+- Tasks have NO dependencies on each other (different files, different components)
+- Tasks can be executed simultaneously without conflicts
+- Tasks are in the same phase (e.g., multiple Phase 1 POC tasks)
+
+**When NOT to mark [P]:**
+- Task B depends on Task A's output
+- Tasks modify the same file
+- Tasks require sequential execution
+- [VERIFY] tasks (must always be sequential)
+- Phase boundary tasks (last task of Phase 1, first task of Phase 2, etc.)
+
+**How [P] works:**
+```markdown
+## Phase 1: Make It Work (POC)
+
+- [ ] 1.1 Setup project structure
+  - **Do**: Create directories, config files
+  - **Files**: src/, tests/, config/
+  - **Done when**: Directories exist
+  - **Verify**: ls -la src/ tests/
+  - **Commit**: `feat: setup project structure`
+
+- [P] 1.2 Implement user model
+  - **Do**: Create User class with fields
+  - **Files**: src/models/User.ts
+  - **Done when**: Class exports User type
+  - **Verify**: grep -r "class User" src/
+  - **Commit**: `feat: add user model`
+
+- [P] 1.3 Implement auth service
+  - **Do**: Create AuthService class
+  - **Files**: src/services/AuthService.ts
+  - **Done when**: AuthService exports login method
+  - **Verify**: grep -r "class AuthService" src/
+  - **Commit**: `feat: add auth service`
+
+- [P] 1.4 Implement database migrations
+  - **Do**: Create migration files
+  - **Files**: src/migrations/
+  - **Done when**: Migration files exist
+  - **Verify**: ls -la src/migrations/
+  - **Commit**: `feat: add database migrations`
+
+- [ ] 1.5 [VERIFY] Quality checkpoint
+  - **Do**: Run lint and typecheck
+  - **Verify**: Commands pass
+  - **Done when**: No errors
+  - **Commit**: `chore: pass quality checkpoint`
+```
+
+**In this example:**
+- Tasks 1.2, 1.3, 1.4 are marked `[P]` because they:
+  - Work on different files (User.ts, AuthService.ts, migrations/)
+  - Have no dependencies on each other
+  - Can execute simultaneously
+
+- Task 1.1 is NOT marked `[P]` because:
+  - Other tasks depend on the directory structure existing
+
+- Task 1.5 is NOT marked `[P]` because:
+  - [VERIFY] tasks must be sequential
+
+**Execution behavior:**
+- When `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`:
+  - Tasks 1.2, 1.3, 1.4 execute in parallel via agent team (2-3 teammates)
+  - Significant speedup for independent tasks
+- When teams disabled or single [P] task:
+  - Tasks execute sequentially (no parallelism benefit)
+
+**Parallel batch detection:**
+Consecutive [P] tasks form a parallel batch:
+- [P] 1.2, [P] 1.3, [P] 1.4 → batch of 3 (parallel execution)
+- [P] 2.1, [ ] 2.2, [P] 2.3 → 2.1 is single (no parallel), 2.3 is single (no parallel)
+</mandatory>
+
 ## VF Task Generation for Fix Goals
 
 <mandatory>
@@ -300,16 +381,25 @@ Focus: Validate the idea works end-to-end. Skip tests, accept hardcoded values.
   - _Requirements: FR-1, AC-1.1_
   - _Design: Component A_
 
-- [ ] 1.2 [Another task]
+- [P] 1.2 [Another independent task - can run parallel with 1.3]
   - **Do**: [Steps]
-  - **Files**: [Paths]
+  - **Files**: [Paths - different from 1.3]
   - **Done when**: [Criteria]
   - **Verify**: [Command]
   - **Commit**: `feat(scope): [description]`
   - _Requirements: FR-2_
   - _Design: Component B_
 
-- [ ] 1.3 [VERIFY] Quality checkpoint: <lint cmd> && <typecheck cmd>
+- [P] 1.3 [Another independent task - can run parallel with 1.2]
+  - **Do**: [Steps]
+  - **Files**: [Paths - different from 1.2]
+  - **Done when**: [Criteria]
+  - **Verify**: [Command]
+  - **Commit**: `feat(scope): [description]`
+  - _Requirements: FR-3_
+  - _Design: Component C_
+
+- [ ] 1.4 [VERIFY] Quality checkpoint: <lint cmd> && <typecheck cmd>
   - **Do**: Run quality commands discovered from research.md
   - **Verify**: All commands exit 0
   - **Done when**: No lint errors, no type errors
