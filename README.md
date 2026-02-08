@@ -40,32 +40,32 @@ Named after the [Ralph agentic loop pattern](https://ghuntley.com/ralph/) and ev
 ## Installation
 
 ```bash
-# Install Smart Ralph from official marketplace
-/plugin marketplace add tzachbon/smart-ralph
+# Install Smart Ralph
+/plugin marketplace add bleedingpixels/smart-ralph
 /plugin install ralph-specum@smart-ralph
 
 # Restart Claude Code
 ```
 
 <details>
-<summary>Install from a fork</summary>
+<summary>Install from upstream</summary>
 
-To install from a fork (e.g., `bleedingpixels/smart-ralph`):
+To install from the original upstream repository (`tzachbon/smart-ralph`):
 
 ```bash
-# Add the fork as a marketplace source
-/plugin marketplace add bleedingpixels/smart-ralph
+# Add the upstream as a marketplace source
+/plugin marketplace add tzachbon/smart-ralph
 
-# Install the plugin from the fork
+# Install the plugin from upstream
 /plugin install ralph-specum@smart-ralph
 
 # Restart Claude Code
 ```
 
-**Why use a fork?**
-- Custom configurations for your team's workflow
-- Modifications to agents or templates
-- Private development or testing
+**Why use upstream?**
+- Latest stable releases from the original author
+- Community-tested features
+- Official support channels
 
 For detailed instructions on forking and configuring your own marketplace, see [FORKING.md](FORKING.md).
 
@@ -76,12 +76,12 @@ For detailed instructions on forking and configuring your own marketplace, see [
 
 **Install from GitHub directly:**
 ```bash
-/plugin install https://github.com/tzachbon/smart-ralph
+/plugin install https://github.com/bleedingpixels/smart-ralph
 ```
 
 **Local development:**
 ```bash
-git clone https://github.com/tzachbon/smart-ralph.git
+git clone https://github.com/bleedingpixels/smart-ralph.git
 claude --plugin-dir ./smart-ralph/plugins/ralph-specum
 ```
 

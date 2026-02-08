@@ -1,7 +1,7 @@
 {
   "name": "smart-ralph",
   "owner": {
-    "name": "tzachbon"
+    "name": "bleedingpixels"
   },
   "metadata": {
     "description": "Spec-driven development with task-by-task execution"
@@ -12,7 +12,7 @@
       "description": "Spec-driven development with research, requirements, design, tasks, and autonomous execution. Fresh context per task.",
       "version": "3.2.0",
       "author": {
-        "name": "tzachbon"
+        "name": "bleedingpixels"
       },
       "source": "./plugins/ralph-specum",
       "category": "development",
@@ -23,7 +23,7 @@
       "description": "Spec-driven development using GitHub spec-kit methodology. Constitution-first approach with specify, plan, tasks, and implement phases.",
       "version": "0.4.0",
       "author": {
-        "name": "tzachbon"
+        "name": "bleedingpixels"
       },
       "source": "./plugins/ralph-speckit",
       "category": "development",
