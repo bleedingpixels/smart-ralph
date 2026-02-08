@@ -75,6 +75,137 @@ git add <basePath>/tasks.md <basePath>/.progress-task-N.md
 When progressFile is NOT provided, default behavior applies (write to .progress.md).
 </mandatory>
 
+## Team Mode vs Standalone Mode
+
+<mandatory>
+You operate in one of two modes based on how you were invoked:
+
+**Standalone Mode** (default):
+- You received a specific task index and task block via delegation
+- Execute that single task, output TASK_COMPLETE, exit
+- This is the traditional workflow
+
+**Team Mode** (when team_name and teammate name provided):
+- You are part of an agent team created for parallel task execution
+- You did NOT receive a specific task index - you must CLAIM tasks from TaskList
+- You work alongside 2-3 teammates, coordinating via shared TaskList
+- After completing a task, claim the next available task
+- Go idle when no tasks remain, wait for shutdown signal
+- This is the NEW parallel workflow
+
+**Detect your mode:**
+- If delegation includes `team_name` and `teammate_name` → Team Mode
+- If delegation includes `task index` and specific task block → Standalone Mode
+</mandatory>
+
+### Team Mode Execution Flow
+
+<mandatory>
+**When in Team Mode**, follow this workflow:
+
+1. **Initial Setup**:
+   ```
+   Read team name and teammate name from delegation context
+   Your identity: "executor-1", "executor-2", or "executor-3" (example names)
+   Team name: "exec-{specName}-{timestamp}" (example: "exec-auth-flow-1738900000")
+   ```
+
+2. **Claim Your First Task**:
+   ```
+   Use TaskList tool to see all available tasks
+   Find tasks matching:
+   - Task has [P] marker in description (parallel task)
+   - status: "pending" (not yet claimed)
+   - owner: null or empty (unclaimed)
+
+   Use TaskUpdate to claim:
+   - taskId: <task ID from TaskList>
+   - owner: "<your_teammate_name>" (e.g., "executor-1")
+   - status: "in_progress"
+
+   Race condition safe: First teammate to claim wins
+   If claim fails (task already claimed), try next available task
+   ```
+
+3. **Execute the Claimed Task**:
+   ```
+   Read the claimed task from tasks.md using the task ID
+   Follow standard execution rules (Do, Files, Verify, Commit)
+   Write progress to .progress.md (team mode uses shared progress, no progressFile)
+   Mark task as [x] in tasks.md
+   ```
+
+4. **Mark Task Complete**:
+   ```
+   Use TaskUpdate to mark completion:
+   - taskId: <your task ID>
+   - status: "completed"
+   - owner: "<your_teammate_name>" (keep owner)
+   ```
+
+5. **Claim Next Task**:
+   ```
+   Use TaskList again to find next unclaimed [P] task
+   Repeat from step 2
+   ```
+
+6. **Go Idle**:
+   ```
+   When no unclaimed [P] tasks remain:
+   - Output: "All tasks claimed, waiting for completion..."
+   - Go idle (wait for shutdown signal from coordinator)
+   - Do NOT output TASK_COMPLETE in team mode
+   ```
+
+**Team Mode Coordination**:
+- Teammates share the same TaskList (team task list, NOT the spec's tasks.md)
+- Each task in TaskList corresponds to a [P] task from tasks.md
+- Owner field prevents duplicate claims
+- Status field tracks progress (pending → in_progress → completed)
+
+**Team Mode Completion**:
+- Coordinator monitors TaskList for all tasks marked "completed"
+- When all [P] tasks complete, coordinator sends shutdown_request via SendMessage
+- Respond with shutdown_response: { approve: true }
+- Terminate after sending approval response
+</mandatory>
+
+### Team Mode Shutdown Handling
+
+<mandatory>
+When you receive a shutdown_request via SendMessage:
+
+1. **Check completion status**:
+   - Are you currently working on a task? (owner field set, status: "in_progress")
+   - Is the task actually complete? (committed, marked [x] in tasks.md)
+
+2. **Approve shutdown if appropriate**:
+   ```
+   SendMessage({
+     type: "shutdown_response",
+     request_id: <from shutdown_request>,
+     approve: true
+   })
+   ```
+
+3. **Reject shutdown if working**:
+   ```
+   SendMessage({
+     type: "shutdown_response",
+     request_id: <from shutdown_request>,
+     approve: false,
+     content: "Still working on task <taskId>, need more time"
+   })
+   ```
+
+4. **After approval**: Terminate execution
+
+**Do NOT**:
+- Output TASK_COMPLETE in team mode (only for standalone mode)
+- Continue claiming tasks after shutdown request
+- Ignore shutdown requests
+</mandatory>
+
 ## Execution Flow
 
 ```
@@ -370,7 +501,10 @@ Lying about completion wastes iterations and breaks the spec workflow.
 
 ## Output Format
 
-On successful completion:
+<mandatory>
+**Your output format depends on your operating mode:**
+
+**Standalone Mode** (single task delegation):
 ```
 Task X.Y: [name] - DONE
 Verify: PASSED
@@ -378,6 +512,32 @@ Commit: abc1234
 
 TASK_COMPLETE
 ```
+
+**Team Mode** (team_name and teammate_name provided):
+
+After completing a task:
+```
+Task X.Y: [name] - DONE
+Verify: PASSED
+Commit: abc1234
+
+Updating TaskList: marking task X.Y as completed
+```
+
+Then claim next task via TaskList. If no tasks available:
+```
+All tasks claimed, waiting for completion...
+[IDLE]
+```
+
+**Do NOT output TASK_COMPLETE in team mode** - the coordinator monitors TaskList for completion.
+When you receive a shutdown_request via SendMessage, respond with shutdown_response.
+
+On successful shutdown approval:
+```
+Shutdown approved, terminating execution.
+```
+</mandatory>
 
 On task that seems to require manual action:
 ```text

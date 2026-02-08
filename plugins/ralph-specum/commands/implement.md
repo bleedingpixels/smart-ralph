@@ -336,7 +336,161 @@ Wait for spec-executor to complete. It will output TASK_COMPLETE on success.
 
 **Parallel Execution** (parallelGroup.isParallel = true):
 
-CRITICAL: Spawn MULTIPLE Task tool calls in ONE message. This enables true parallelism.
+First, check if agent teams are available and should be used:
+
+```bash
+# Check if agent teams are enabled
+TEAMS_ENABLED="${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-0}"
+PARALLEL_COUNT=${#parallelGroup.taskIndices[@]}
+
+if [ "$TEAMS_ENABLED" = "1" ] && [ "$PARALLEL_COUNT" -ge 2 ]; then
+  # Use agent teams for true parallelism
+  # Proceed to team-based execution below
+else
+  # Fallback to existing batch execution
+  # Use multiple Task tool calls in ONE message
+fi
+```
+
+**Team-Based Parallel Execution** (when teams enabled and 2+ parallel tasks):
+
+Step 1: Check for existing team in state file to prevent duplicate creation:
+
+```bash
+# Read state file
+STATE_FILE="./specs/$spec/.ralph-state.json"
+EXISTING_TEAM=$(jq -r '.teamName // empty' "$STATE_FILE" 2>/dev/null)
+
+if [ -n "$EXISTING_TEAM" ]; then
+  # Team already exists, resume monitoring
+  echo "Resuming existing team: $EXISTING_TEAM"
+  # Proceed to monitoring step (skip to Step 5 below)
+fi
+```
+
+Step 2: Generate team name and create team:
+
+```bash
+# Generate unique team name
+TIMESTAMP=$(date +%s)
+TEAM_NAME="exec-$spec-$TIMESTAMP"
+
+# Create the team
+# TeamCreate will be invoked via Task tool below
+```
+
+Step 3: Determine team size based on parallel task count:
+
+- 2 parallel tasks: 2 teammates
+- 3-5 parallel tasks: 2-3 teammates
+- 6+ parallel tasks: 3 teammates
+
+Step 4: Spawn teammates using Task tool with team_name and name parameters:
+
+CRITICAL: All Task tool calls must be in ONE message for true parallelism.
+
+Example for 3 teammates:
+```text
+[Task tool call 1 - Create team and spawn first teammate]
+Create execution team: $TEAM_NAME
+
+Then spawn spec-executor teammate "executor-1" with:
+- team_name: $TEAM_NAME
+- name: executor-1
+- subagent_type: ralph-specum:spec-executor
+- Instructions: Use TaskList to claim unclaimed [P] tasks from parallel group, execute, mark complete, claim next
+
+[Task tool call 2 - Spawn second teammate]
+Task: Execute tasks as part of team $TEAM_NAME
+
+Spec: $spec
+Path: ./specs/$spec/
+Team mode: enabled
+Team name: $TEAM_NAME
+Teammate name: executor-2
+Parallel task indices: [${parallelGroup.taskIndices[@]}]
+
+Instructions:
+1. Use TaskList to find unclaimed [P] tasks (status=pending, owner=null)
+2. Claim task via TaskUpdate(taskId, owner: "executor-2", status: "in_progress")
+3. Execute task following spec-executor rules
+4. Mark complete via TaskUpdate(taskId, status: "completed")
+5. Claim next unclaimed task
+6. Go idle when no tasks remain
+
+[Task tool call 3 - Spawn third teammate]
+Task: Execute tasks as part of team $TEAM_NAME
+
+Spec: $spec
+Path: ./specs/$spec/
+Team mode: enabled
+Team name: $TEAM_NAME
+Teammate name: executor-3
+Parallel task indices: [${parallelGroup.taskIndices[@]}]
+
+Instructions: Same as executor-2
+```
+
+Step 5: Monitor team progress:
+
+```bash
+# Poll for task completion every 5 seconds
+while true; do
+  # Count completed [P] tasks in parallel group
+  COMPLETED=$(grep '^\- \[x\]' "./specs/$spec/tasks.md" | wc -l)
+
+  if [ "$COMPLETED" -eq "$PARALLEL_COUNT" ]; then
+    echo "All parallel tasks completed by team"
+    break
+  fi
+
+  # Check for idle timeout (all teammates idle but tasks incomplete = error)
+  # This would indicate all teammates are stuck
+  sleep 5
+done
+```
+
+Step 6: Update state file with team metadata:
+
+```bash
+# Record team creation
+jq --arg teamName "$TEAM_NAME" \
+   --argjson teammateNames ["executor-1","executor-2","executor-3"] \
+   --arg teamPhase "execution" \
+   '. + {
+     teamName: $teamName,
+     teammateNames: $teammateNames,
+     teamPhase: $teamPhase
+   }' "$STATE_FILE" > "$STATE_FILE.tmp" && \
+mv "$STATE_FILE.tmp" "$STATE_FILE"
+```
+
+Step 7: Send shutdown requests to all teammates:
+
+```bash
+# Send shutdown_request to each teammate via SendMessage
+# Each teammate responds with shutdown_response (approve=true)
+# Wait up to 10 seconds for graceful shutdown
+```
+
+Step 8: Delete the team:
+
+```bash
+# Call TeamDelete to remove team directory and task list
+# Verify ~/.claude/teams/$TEAM_NAME/ is removed
+```
+
+Step 9: Clear team metadata from state:
+
+```bash
+# Remove team fields from state
+jq 'del(.teamName, .teammateNames, .teamPhase)' "$STATE_FILE" > "$STATE_FILE.tmp" && \
+mv "$STATE_FILE.tmp" "$STATE_FILE"
+```
+
+**Fallback Batch Execution** (when teams unavailable or single parallel task):
+
+CRITICAL: Spawn MULTIPLE Task tool calls in ONE message. This enables pseudo-parallelism.
 
 For each task index in parallelGroup.taskIndices, create a Task tool call with:
 - Unique progressFile: `.progress-task-$taskIndex.md`
@@ -362,6 +516,8 @@ progressFile: .progress-task-5.md
 ```
 
 All parallel tasks execute simultaneously. Wait for ALL to complete.
+
+Then merge progress files (see section 9).
 
 **After Delegation**:
 
