@@ -902,3 +902,368 @@ fi
 5. **Ethical**: Privacy-respecting, user consent
 
 With these considerations, commands become marketplace-ready and delight users across diverse environments and use cases.
+
+## Forking for Distribution
+
+### When to Fork vs Contribute Upstream
+
+**Fork when:**
+- You need custom features not aligned with upstream goals
+- Upstream is unmaintained or inactive
+- You require different release cadence or priorities
+- You want to experiment with significant changes
+- You need to maintain a stable version while upstream evolves rapidly
+- You're creating a specialized variant for a specific use case
+
+**Contribute upstream when:**
+- Features benefit the broader community
+- Bug fixes or improvements applicable to all users
+- Documentation enhancements
+- Performance optimizations
+- Security patches
+
+**Decision framework:**
+
+```markdown
+<!--
+FORK DECISION CHECKLIST:
+
+Before forking, consider:
+- [ ] Have I discussed the feature with upstream maintainers?
+- [ ] Is this change specific to my use case or generally useful?
+- [ ] Am I willing to maintain the fork long-term?
+- [ ] Have I checked if upstream is accepting contributions?
+- [ ] Can the functionality be achieved through configuration instead?
+
+If yes to most above, contribute upstream.
+If no to most above, forking may be appropriate.
+-->
+```
+
+### Configuring marketplace.json for Forks
+
+When forking a plugin, update `marketplace.json` to reflect your ownership while maintaining traceability to the original:
+
+```json
+{
+  "plugins": [
+    {
+      "name": "your-fork-plugin-name",
+      "version": "1.0.0",
+      "owner": {
+        "name": "your-username",
+        "type": "user"
+      },
+      "source": "https://github.com/your-username/your-fork-repo",
+      "description": "Your fork description - mention original plugin",
+      "fork": {
+        "original": "original-plugin-name",
+        "original_owner": "original-owner-name",
+        "original_source": "https://github.com/original-owner/original-repo"
+      },
+      "tags": ["fork", "custom-feature"],
+      "readme": "https://github.com/your-username/your-fork-repo/blob/main/README.md"
+    }
+  ]
+}
+```
+
+**Key modifications for forks:**
+
+1. **Update owner.name**: Change to your GitHub username
+2. **Update source**: Point to your fork's repository
+3. **Add fork metadata**: Include `fork` object with original plugin info
+4. **Update description**: Clearly indicate this is a fork and why
+5. **Add fork tag**: Helps users identify forked plugins
+
+**Example before and after:**
+
+```json
+// Original marketplace.json
+{
+  "plugins": [{
+    "name": "ralph-specum",
+    "version": "3.0.0",
+    "owner": {
+      "name": "tzachbon",
+      "type": "user"
+    },
+    "source": "https://github.com/tzachbon/smart-ralph"
+  }]
+}
+
+// Forked marketplace.json
+{
+  "plugins": [{
+    "name": "ralph-specum-custom",
+    "version": "1.0.0",
+    "owner": {
+      "name": "your-username",
+      "type": "user"
+    },
+    "source": "https://github.com/your-username/smart-ralph-fork",
+    "description": "Custom fork of ralph-specum with additional features",
+    "fork": {
+      "original": "ralph-specum",
+      "original_owner": "tzachbon",
+      "original_source": "https://github.com/tzachbon/smart-ralph"
+    }
+  }]
+}
+```
+
+### Version Naming Conventions for Forks
+
+**Recommended approaches:**
+
+1. **Independent versioning**: Reset to 1.0.0 and maintain your own version sequence
+   ```json
+   {
+     "name": "plugin-fork",
+     "version": "1.0.0"
+   }
+   ```
+
+2. **Owner prefix**: Add your username to the plugin name
+   ```json
+   {
+     "name": "username-plugin-name",
+     "version": "1.0.0"
+   }
+   ```
+
+3. **Variant suffix**: Add a descriptive suffix to the original name
+   ```json
+   {
+     "name": "plugin-name-enhanced",
+     "version": "1.0.0"
+   }
+   ```
+
+4. **Downstream version reference**: Track upstream version in description
+   ```json
+   {
+     "name": "plugin-name",
+     "version": "1.2.0",
+     "description": "Fork based on upstream v3.0.0",
+     "upstream_version": "3.0.0"
+   }
+   ```
+
+**Best practices:**
+
+- Always use semantic versioning (MAJOR.MINOR.PATCH)
+- Document version correspondence with upstream
+- Include changelog with fork-specific changes
+- Avoid using original version numbers to prevent confusion
+
+**Version compatibility tracking:**
+
+```markdown
+<!--
+VERSION TRACKING:
+
+Fork version: 1.2.0
+Based on upstream: 3.0.0
+Divergence date: 2025-01-15
+
+Fork-specific changes:
+- v1.2.0: Added custom feature X
+- v1.1.0: Modified behavior of Y
+- v1.0.0: Initial fork from upstream v3.0.0
+
+Upstream changes not yet merged:
+- [ ] Upstream PR #123
+- [ ] Custom feature X (submitted for review)
+-->
+```
+
+### How Users Discover and Install Forked Plugins
+
+**Discovery methods:**
+
+1. **Marketplace search**: Users can search for your fork by name or tags
+   ```
+   Search: "username-plugin-name" or "plugin fork custom"
+   ```
+
+2. **Direct installation**: Users install using your fork's source URL
+   ```bash
+   /plugin install https://github.com/your-username/your-fork-repo
+   ```
+
+3. **README links**: Document your fork in the original plugin's discussions
+   ```markdown
+   ## Community Forks
+
+   - [Your Fork](https://github.com/your-username/fork) - Description of custom features
+   ```
+
+4. **Social proof**: Encourage users who benefit from your fork to star it
+
+**Installation instructions for fork README:**
+
+```markdown
+## Installation
+
+This is a fork of [original-plugin](https://github.com/original-owner/original-repo).
+
+### Install via Claude Code Marketplace
+
+\`\`\`bash
+/plugin install your-username/your-fork-name
+\`\`\`
+
+### Install Directly from GitHub
+
+\`\`\`bash
+/plugin install https://github.com/your-username/your-fork-repo
+\`\`\`
+
+### Why This Fork?
+
+This fork includes:
+- Custom feature X not in upstream
+- Modified behavior of Y for specific use case
+- Additional configuration options
+- Bug fixes not yet merged upstream
+
+See [FORK_CHANGES.md](FORK_CHANGES.md) for complete details.
+```
+
+**Upgrade path for users:**
+
+```markdown
+## Upgrading from Original Plugin
+
+If you're already using the original plugin:
+
+1. Uninstall original: `/plugin uninstall original-plugin`
+2. Install fork: `/plugin install your-username/your-fork-name`
+3. Migrate configuration (if needed)
+
+**Note**: Configuration files are typically compatible, but check [MIGRATION.md](MIGRATION.md) for any specific changes.
+```
+
+### Maintenance Responsibilities for Fork Owners
+
+**Essential maintenance tasks:**
+
+1. **Track upstream changes**
+   ```bash
+   # Add original repo as upstream remote
+   git remote add upstream https://github.com/original-owner/original-repo
+
+   # Fetch upstream changes regularly
+   git fetch upstream
+
+   # Review upstream changes
+   git log main..upstream/main
+   ```
+
+2. **Security updates**
+   - Monitor upstream for security patches
+   - Promptly merge critical fixes
+   - Test and release updates quickly
+
+3. **Bug fixes**
+   - Fix fork-specific bugs
+   - Consider contributing fixes upstream
+   - Document known issues
+
+4. **Feature management**
+   - Clearly document fork-specific features
+   - Avoid unnecessary divergence
+   - Submit valuable features upstream
+
+5. **User support**
+   - Respond to issues in your fork
+   - Provide upgrade guidance
+   - Document breaking changes
+
+6. **Version management**
+   ```json
+   {
+     "version": "1.2.0",
+     "upstream_version": "3.0.0",
+     "last_sync": "2025-01-15",
+     "pending_upstream_changes": 5
+   }
+   ```
+
+**Maintenance checklist:**
+
+```markdown
+<!--
+FORK MAINTENANCE CHECKLIST:
+
+Weekly:
+- [ ] Check upstream for new releases
+- [ ] Review upstream issues/PRs
+- [ ] Respond to fork issues
+
+Monthly:
+- [ ] Test upstream changes for compatibility
+- [ ] Merge upstream fixes if compatible
+- [ ] Update documentation
+- [ ] Review fork-specific features for upstream potential
+
+Quarterly:
+- [ ] Consider rebasing on latest upstream
+- [ ] Review fork purpose and value
+- [ ] Update version tracking
+- [ ] Communicate with upstream maintainers
+
+As Needed:
+- [ ] Security updates (immediate)
+- [ ] Critical bug fixes (prompt)
+- [ ] User support requests (timely)
+-->
+```
+
+**Communication with upstream:**
+
+- Be transparent about your fork
+- Credit original authors
+- Share valuable improvements
+- Coordinate on significant changes
+- Respect original licensing
+
+**Fork lifecycle considerations:**
+
+```markdown
+## Fork Lifecycle
+
+**Phase 1: Creation** (Days 1-7)
+- Set up fork infrastructure
+- Document rationale
+- Establish version baseline
+
+**Phase 2: Active Development** (Weeks 1-12)
+- Implement fork-specific features
+- Build user community
+- Establish maintenance routines
+
+**Phase 3: Maintenance** (Ongoing)
+- Track upstream changes
+- Support users
+- Consider upstream contributions
+
+**Phase 4: Reintegration or Continuation** (Long-term)
+- Evaluate if features should go upstream
+- Decide whether to maintain or deprecate
+- Plan user migration if sunsetting
+```
+
+**When to sunset a fork:**
+
+- Upstream adopts your features
+- Your use case is no longer relevant
+- Unable to maintain adequately
+- User base has migrated away
+
+If sunsetting, provide users with:
+- Advance notice (at least 3 months)
+- Migration path back to upstream
+- Archive of fork-specific features
+- Reason for deprecation
