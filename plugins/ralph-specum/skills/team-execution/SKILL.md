@@ -164,7 +164,8 @@ Watch for task completion and idle teammates:
 # Poll TaskList for completion (every 5 seconds)
 while true; do
   # Check if all parallel tasks completed
-  COMPLETED=$(grep -c '^\- \[x\]' "./specs/${SPEC_NAME}/tasks.md" | grep -A 10 'PARALLEL_START')
+  # Extract lines between PARALLEL_START and PARALLEL_END, count completed tasks
+  COMPLETED=$(sed -n '/PARALLEL_START/,/PARALLEL_END/p' "./specs/${SPEC_NAME}/tasks.md" | grep -c '^\- \[x\]')
 
   if [ "$COMPLETED" -eq "$PARALLEL_COUNT" ]; then
     echo "All parallel tasks completed"
@@ -230,25 +231,8 @@ if [ "$PARALLEL_DONE" -eq "$PARALLEL_COUNT" ]; then
     })
   done
 
-  # Wait for approvals (up to 10 seconds)
-  TIMEOUT=10
-  STARTED=$(date +%s)
-
-  while [ $(($(date +%s) - STARTED)) -lt $TIMEOUT ]; do
-    # Check if all teammates approved
-    APPROVED=$(jq -r '.teammateNames | all(.approved == true)' "$STATE_FILE")
-
-    if [ "$APPROVED" = "true" ]; then
-      break
-    fi
-
-    sleep 1
-  done
-
-  # Force shutdown if timeout
-  if [ $(($(date +%s) - STARTED)) -ge $TIMEOUT ]; then
-    echo "WARNING: Shutdown timeout. Forcing team deletion."
-  fi
+  # Wait for graceful shutdown (10 second timeout for teammates to respond)
+  sleep 10
 fi
 ```
 

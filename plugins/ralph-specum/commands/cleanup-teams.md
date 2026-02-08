@@ -1,4 +1,5 @@
 ---
+name: cleanup-teams
 description: Safely remove orphaned team directories
 argument-hint: [--force]
 allowed-tools: [Read, Bash, AskUserQuestion]

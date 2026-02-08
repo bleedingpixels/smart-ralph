@@ -201,20 +201,8 @@ for teammate in "${TEAMMATES[@]}"; do
   })
 done
 
-# Wait for approvals (up to 10 seconds)
-TIMEOUT=10
-STARTED=$(date +%s)
-
-while [ $(($(date +%s) - STARTED)) -lt $TIMEOUT ]; do
-  # Check if all teammates approved
-  APPROVED=$(jq -r '.teammateNames | all(.approved == true)' "$STATE_FILE")
-
-  if [ "$APPROVED" = "true" ]; then
-    break
-  fi
-
-  sleep 1
-done
+# Wait for graceful shutdown (10 second timeout for teammates to respond)
+sleep 10
 ```
 
 **Shutdown protocol:**

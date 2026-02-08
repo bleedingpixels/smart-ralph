@@ -1,4 +1,5 @@
 ---
+name: team-status
 description: Display active agent teams
 argument-hint: [spec-name]
 allowed-tools: [Read, Bash, Skill, AskUserQuestion]

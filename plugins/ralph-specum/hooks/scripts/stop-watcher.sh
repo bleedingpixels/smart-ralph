@@ -54,10 +54,10 @@ fi
 if command -v stat >/dev/null 2>&1; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS stat
-        MTIME=$(stat -f %m "$STATE_FILE" 2>/dev/null || echo "0")
+        MTIME=$(stat -f %m "$STATE_FILE" 2>/dev/null) || MTIME="0"
     else
         # Linux stat
-        MTIME=$(stat -c %Y "$STATE_FILE" 2>/dev/null || echo "0")
+        MTIME=$(stat -c %Y "$STATE_FILE" 2>/dev/null) || MTIME="0"
     fi
     NOW=$(date +%s)
     AGE=$((NOW - MTIME))
@@ -194,12 +194,18 @@ if [ -d "$TEAMS_DIR" ]; then
         [ -f "$config_file" ] || continue
 
         # Get creation/modification time
+        # Skip team if stat fails (permission denied, file vanished, etc.)
         if [[ "$OSTYPE" == "darwin"* ]]; then
             # macOS stat
-            team_time=$(stat -f %m "$config_file" 2>/dev/null || echo "0")
+            team_time=$(stat -f %m "$config_file" 2>/dev/null) || continue
         else
             # Linux stat
-            team_time=$(stat -c %Y "$config_file" 2>/dev/null || echo "0")
+            team_time=$(stat -c %Y "$config_file" 2>/dev/null) || continue
+        fi
+
+        # Skip if team_time is empty or invalid (stat failed)
+        if [ -z "$team_time" ] || [ "$team_time" = "0" ]; then
+            continue
         fi
 
         # Skip if team is newer than 1 hour
